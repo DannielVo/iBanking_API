@@ -1,29 +1,33 @@
 # iBanking API – Customer & Account Services
 
 ## 📌 Introduction
-This project provides a **backend system for iBanking** using **FastAPI**.  
-It is divided into two main microservices:  
 
-- **Customer Service**: manages customer information and tuition fees.  
-- **Account Service**: manages accounts, balances, and balance updates (deposit/withdraw).  
+This project provides a **backend system for iBanking** using **FastAPI**.  
+It is divided into two main microservices:
+
+- **Customer Service**: manages customer information and tuition fees.
+- **Account Service**: manages accounts, balances, and balance updates (deposit/withdraw).
 
 The system is designed to support online tuition payment workflows.
 
 ---
 
 ## ⚙️ System Requirements
-- **Python**: 3.11+  
-- **SQL Server** installed and running  
-- **ODBC Driver**: ODBC Driver 17 for SQL Server  
+
+- **Python**: 3.11+
+- **SQL Server** installed and running
+- **ODBC Driver**: ODBC Driver 17 for SQL Server
 
 ### Required Python Libraries
-- [FastAPI](https://fastapi.tiangolo.com/) — main framework for building APIs  
-- [Uvicorn](https://www.uvicorn.org/) — ASGI server to run FastAPI  
-- [Pydantic](https://docs.pydantic.dev/) — data validation (BaseModel, EmailStr, Field)  
-- [Requests](https://docs.python-requests.org/) — HTTP client, used in Account Service to call Customer Service  
+
+- [FastAPI](https://fastapi.tiangolo.com/) — main framework for building APIs
+- [Uvicorn](https://www.uvicorn.org/) — ASGI server to run FastAPI
+- [Pydantic](https://docs.pydantic.dev/) — data validation (BaseModel, EmailStr, Field)
+- [Requests](https://docs.python-requests.org/) — HTTP client, used in Account Service to call Customer Service
 - [PyODBC](https://github.com/mkleehammer/pyodbc) — SQL Server connector
 
 You can install all dependencies via:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -33,6 +37,7 @@ pip install -r requirements.txt
 ## 🚀 Installation Guide
 
 1. **Clone the repository**
+
    ```bash
    git clone <repo-link>
    cd iBanking_API/Customer_Account_Email
@@ -41,6 +46,7 @@ pip install -r requirements.txt
 2. **Configure Database Connections**  
    Each service has a `get_connection()` function that defines the SQL Server connection string.  
    Example (in `account_service.py`):
+
    ```python
    def get_connection():
        return pyodbc.connect(
@@ -51,22 +57,25 @@ pip install -r requirements.txt
        )
    ```
 
-   🔹 **Important**:  
-   - Replace `DESKTOP-ITBGSRM\\MSSQLSERVER01` with your actual SQL Server instance name.  
-   - To find your SQL Server name:  
-     1. Open **SQL Server Management Studio (SSMS)**.  
-     2. In the login window, check the "Server name" field.  
-        Examples:  
-        - `.\SQLEXPRESS`  
-        - `localhost`  
-        - `MACHINE_NAME\INSTANCE_NAME`  
-     3. Use **double backslashes (`\\`)** in the Python string.  
+   🔹 **Important**:
 
-   - Ensure the following databases exist:  
-     - `CustomerDB` → table `Customers`  
+   - Replace `DESKTOP-ITBGSRM\\MSSQLSERVER01` with your actual SQL Server instance name.
+   - To find your SQL Server name:
+
+     1. Open **SQL Server Management Studio (SSMS)**.
+     2. In the login window, check the "Server name" field.  
+        Examples:
+        - `.\SQLEXPRESS`
+        - `localhost`
+        - `MACHINE_NAME\INSTANCE_NAME`
+     3. Use **double backslashes (`\\`)** in the Python string.
+
+   - Ensure the following databases exist:
+     - `CustomerDB` → table `Customers`
      - `AccountDB` → table `Account`
 
 3. **Run the Services**
+
    - Customer Service (port 8000):
      ```bash
      uvicorn customer_service:app --reload --port 8000
@@ -75,15 +84,34 @@ pip install -r requirements.txt
      ```bash
      uvicorn account_service:app --reload --port 8001
      ```
+   - Authentication Service (port 8002):
+     ```bash
+     python authentication_service.py
+     ```
+   - Payment Service (port 8003):
+
+   ```bash
+   python payment_service.py
+   ```
+
+   - OTP Service (port 8004):
+
+   ```bash
+   python OTP_service.py
+   ```
 
 4. **Access API Documentation**
    - Swagger UI:
-     - [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) → Customer Service  
-     - [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) → Account Service  
+     - [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) → Customer Service
+     - [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) → Account Service
+     - [http://127.0.0.1:8002/docs](http://127.0.0.1:8002/docs) → Authentication Service
+     - [http://127.0.0.1:8003/docs](http://127.0.0.1:8003/docs) → Payment Service
+     - [http://127.0.0.1:8004/docs](http://127.0.0.1:8004/docs) → OTP Service
 
 ---
 
 ## 📂 Project Structure
+
 ```
 Customer_Account_Email/
 │
@@ -94,25 +122,30 @@ Customer_Account_Email/
 ├── requirements.txt          # Dependencies
 └── README.md                 # Documentation
 ```
+
 ---
 
 ## 📝 Notes
-- In `BalanceUpdate`, the `description` field is recommended for transaction logging (e.g., "Pay tuition fee"). To fully support it, consider creating a `TransactionHistory` table.  
-- Always check your SQL Server connection string carefully to avoid errors.  
-- Use Swagger UI (`/docs`) for quick testing of APIs.  
-- Run each service on a separate port to avoid conflicts.  
+
+- In `BalanceUpdate`, the `description` field is recommended for transaction logging (e.g., "Pay tuition fee"). To fully support it, consider creating a `TransactionHistory` table.
+- Always check your SQL Server connection string carefully to avoid errors.
+- Use Swagger UI (`/docs`) for quick testing of APIs.
+- Run each service on a separate port to avoid conflicts.
 
 ---
 
 ## 📊 Usage Examples
 
 ### ✅ Get Customer Info
+
 **Request**
+
 ```http
 GET /customers/101
 ```
 
 **Response**
+
 ```json
 {
   "customer_id": "101",
@@ -124,12 +157,15 @@ GET /customers/101
 ```
 
 ### ✅ Get Accounts by Customer
+
 **Request**
+
 ```http
 GET /account/101
 ```
 
 **Response**
+
 ```json
 [
   {
@@ -146,7 +182,9 @@ GET /account/101
 ```
 
 ### ✅ Update Balance
+
 **Request**
+
 ```http
 PUT /account/updateBalance
 
@@ -158,6 +196,7 @@ PUT /account/updateBalance
 ```
 
 **Response**
+
 ```json
 {
   "customer_id": "101",
