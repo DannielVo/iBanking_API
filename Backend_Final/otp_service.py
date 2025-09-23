@@ -38,7 +38,7 @@ def generate_otp(userId: int):
     cur = conn.cursor()
     try:
         otp_code = str(random.randint(100000, 999999))
-        expired_at = datetime.utcnow() + timedelta(seconds=30)
+        expired_at = datetime.utcnow() + timedelta(seconds=120)
         cur.execute(
             "INSERT INTO otp (userId, otpCode, expired_at, is_used) VALUES (?, ?, ?, 0)",
             (userId, otp_code, expired_at)
