@@ -24,6 +24,6 @@ GO
 
 INSERT INTO authentication (username, password_hash)
 VALUES 
-(N'Nguyen Van A', '$2b$12$S4FIC9fmS5Mg2BEA5hjIGOLIlI1WBQhg.sOU6Ht0G9xH2eHsbgVAe'),
-(N'Nguyen Van B', '$2b$12$vwLOSggSsGjAoV3gic2fIuGcyDf.q1d8nhd0a4nM6AFG286Ba.COW');
+('a@example.com', '$2b$12$S4FIC9fmS5Mg2BEA5hjIGOLIlI1WBQhg.sOU6Ht0G9xH2eHsbgVAe'),
+('b@example.com', '$2b$12$vwLOSggSsGjAoV3gic2fIuGcyDf.q1d8nhd0a4nM6AFG286Ba.COW');
 GO
