@@ -23,7 +23,7 @@ class AccountResponse(Account):   # kế thừa từ Account
 class BalanceUpdate(BaseModel):
     account_id: str
     amount: float
-    description: str # có cần thiết phải có cái này không, mục đích của nó là gì
+    description: str 
     
 def get_connection():
     return pyodbc.connect(
@@ -44,13 +44,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error. Please try again later."},
     )  
     
-@app.get("/account/{customer_id}",response_model=list[Account])
+@app.get("/account/{customer_id}",response_model=Account)
 def getAccountinfo(customer_id : str):
     res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}",timeout=5)
     connct = get_connection()
     cur = connct.cursor()
     cur.execute("SELECT customer_id, account_id, balance FROM account WHERE customer_id = ?", customer_id)
-    row = cur.fetchall() 
+    row = cur.fetchone() 
     try:
         # Trả về thành công
         if res.status_code == 200:
