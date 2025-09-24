@@ -32,8 +32,11 @@ def get_connection():
         "DATABASE=AccountDB;"
         "Trusted_Connection=yes;"
     )    
-
-CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers" # Lấy URL gốc của customer_service
+    
+# Lấy URL gốc của customer_service
+CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers" 
+# Email Service URL
+EMAIL_SERVICE_URL = "http://127.0.0.1:8005/email/send"
 
 # Xử lý lỗi hệ thống (500) toàn cục
 @app.exception_handler(Exception)
@@ -93,8 +96,54 @@ def find_account_by_id(account_id: str):
         )
     finally:
         conn.close()
-      
-      
+
+# Lấy email khách hàng từ Customer Service
+def get_customer_email(customer_id: str) -> str:
+    try:
+        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            return data.get("email")
+        elif res.status_code == 404:
+            raise HTTPException(status_code=404, detail="Customer not found in Customer Service")
+        else:
+            raise HTTPException(status_code=502, detail="Customer Service error")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Customer Service unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Customer Service unavailable")
+    
+# Lấy tên khách hàng
+def get_customer_name(customer_id: str) -> str:
+    try:
+        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            return data.get("full_name")
+        elif res.status_code == 404:
+            raise HTTPException(status_code=404, detail="Customer not found in Customer Service")
+        else:
+            raise HTTPException(status_code=502, detail="Customer Service error")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Customer Service unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Customer Service unavailable")
+
+# Hàm gửi email bằng cách gọi sang Email Service
+def notify_email(recipient: str, subject: str, body: str):
+    payload = {
+        "toList": [recipient],
+        "subject": subject,
+        "body": body
+    }
+    try:
+        res = requests.post(EMAIL_SERVICE_URL, json=payload, timeout=5)
+        if res.status_code != 200:
+            logging.error(f"Email service returned {res.status_code}: {res.text}")
+            return False
+        return True
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to connect to Email Service: {e}")
+        return False      
+    
 @app.put("/account/updateBalance",response_model=AccountResponse)
 def update_balance(data: BalanceUpdate):
     # Lấy account theo account_id từ DB
@@ -125,6 +174,22 @@ def update_balance(data: BalanceUpdate):
         raise HTTPException(status_code=500, detail="Database error")
     finally:
         conn.close()
+    
+    # Lấy email khách hàng từ Customer Service
+    customer_email = get_customer_email(account.customer_id)
+    customer_name = get_customer_name(account.customer_id)
+    # Gọi Email Service để gửi thông báo
+    subject = "Account Balance Updated"
+    body = f"""
+    Dear {customer_name},
+
+    Your account {account.account_id} has been updated successfully.
+    New Balance: {new_balance:,.2f} VND
+    Description: {data.description}
+
+    Thank you for using iBanking.
+    """
+    notify_email(customer_email, subject, body)
     
     return AccountResponse(
     customer_id=account.customer_id,
