@@ -1,25 +1,21 @@
-﻿create database PaymentDB
-
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'PaymentDB')
-BEGIN
-    CREATE DATABASE PaymentDB;
-END
+-- Tạo database
+CREATE DATABASE PaymentDB;
 GO
-
 USE PaymentDB;
 GO
 
--- Xóa bảng cũ nếu có
-IF OBJECT_ID('dbo.payment', 'U') IS NOT NULL
-    DROP TABLE dbo.payment;
-GO
-
--- Bảng payment
+-- Tạo bảng Payment
 CREATE TABLE payment (
     transactionId INT IDENTITY(1,1) PRIMARY KEY,
-    accountId INT NOT NULL,
-    amount DECIMAL(12,2) NOT NULL,
-    status NVARCHAR(50) DEFAULT 'PENDING',
-    transaction_history NVARCHAR(MAX) NULL
+    customerId INT NOT NULL,
+    amount DECIMAL(18,2) NOT NULL,
+    status VARCHAR(10) CHECK (status IN ('unpaid','paid')) NOT NULL,
+    transaction_history NVARCHAR(255)
 );
-GO
+
+-- Dummy data
+INSERT INTO payment (customerId, amount, status, transaction_history)
+VALUES (101, 900000, 'unpaid', 'Initial unpaid payment for customer 101');
+
+INSERT INTO payment (customerId, amount, status, transaction_history)
+VALUES (102, 500000, 'unpaid', 'Initial unpaid payment for customer 102');
