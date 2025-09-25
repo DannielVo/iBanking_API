@@ -181,14 +181,26 @@ def update_balance(data: BalanceUpdate):
     # Gọi Email Service để gửi thông báo
     subject = "Account Balance Updated"
     body = f"""
-    Dear {customer_name},
-
-    Your account {account.account_id} has been updated successfully.
-    New Balance: {new_balance:,.2f} VND
-    Description: {data.description}
-
-    Thank you for using iBanking.
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333; background-color: #f8f9fa; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+        <h2 style="color: #2E86C1; text-align:center;">iBanking - Account Balance Update</h2>
+        <p>Dear <b>{customer_name}</b>,</p>
+        <p>Your account <b>{account.account_id}</b> has been updated successfully.</p>
+        <p>
+            <b>💰 New Balance:</b> <span style="color:green;">{new_balance:,.2f} VND</span><br>
+            <b>📝 Description:</b> {data.description}
+        </p>
+        <p style="margin-top:20px;">Thank you for using <b>iBanking</b>.</p>
+        <hr>
+        <footer style="font-size:12px; text-align:center; color:#999;">
+            © 2025 iBanking - All rights reserved
+        </footer>
+        </div>
+    </body>
+    </html>
     """
+    # Muốn test thì thay customer_email thành gmail của mình
     notify_email(customer_email, subject, body)
     
     return AccountResponse(

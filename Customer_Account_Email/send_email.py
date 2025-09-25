@@ -1,6 +1,7 @@
 import os.path
 import base64
 import pyodbc
+
 from datetime import datetime
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -27,7 +28,7 @@ def get_connection():
         "DATABASE=EmailDB;"   
         "Trusted_Connection=yes;"
     )
-    
+        
 def log_email(recipient, subject, status, error_message=None):
     conn = get_connection()
     try:
@@ -41,7 +42,7 @@ def log_email(recipient, subject, status, error_message=None):
         conn.close()
 
 
-def send_email_v1(recipient: str, subject: str = None, content: str = None, port: int = 0) -> bool:
+def send_email_v1(recipient: str, subject: str, content: str, port: int = 0, html: bool = False) -> bool:
     """Send email using Gmail API"""
     creds = None
     if os.path.exists('token.json'):
@@ -62,11 +63,16 @@ def send_email_v1(recipient: str, subject: str = None, content: str = None, port
 
         # Tạo email
         message = EmailMessage()
-        message['Subject'] = subject or f"Test Message ({datetime.now().strftime('%m/%d/%Y %H:%M:%S')})"
-        message.set_content(content or "This is a test message sent from FastAPI.")
+        message['Subject'] = subject 
+        message.set_content(content)
         message['To'] = recipient
         message['From'] = formataddr(('iBanking App', service.users().getProfile(userId='me').execute()['emailAddress']))
 
+        if html:
+            message.add_alternative(content, subtype="html")
+        else:
+            message.set_content(content)
+            
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         create_message = {'raw': encoded_message}
 
@@ -84,7 +90,7 @@ def send_email_v1(recipient: str, subject: str = None, content: str = None, port
 def send_bulk_email(to_list: List[str], subject: str, body: str):
     success_count, failed = 0, []
     for recipient in to_list:
-        if send_email_v1(recipient, subject, body):
+        if send_email_v1(recipient, subject, body,html= True):
             success_count += 1
         else:
             failed.append(recipient)

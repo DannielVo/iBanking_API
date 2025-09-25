@@ -100,7 +100,7 @@ Customer_Account_Email/
 ├── account_service.py          # Account service (balance management & notifications)
 ├── customer_service.py         # Customer service (customer info & tuition debt)
 ├── email_service.py            # Email service (send emails via Gmail API)
-├── send_email.py               # Gmail OAuth2 send logic
+├── send_email.py               # Custom module for Gmail OAuth2 and email sending
 │
 ├── account_serviceDB.sql       # SQL script for AccountDB
 ├── customer_serviceDB.sql      # SQL script for CustomerDB
@@ -122,6 +122,8 @@ Customer_Account_Email/
   - Customer → 8000  
   - Account → 8001  
   - Email → 8005  
+- `send_email.py` is a custom utility file in this project (not an external dependency).
+
 - Keep `credentials_desktop_apps.json` and `token.json` private.  
 
 ---
