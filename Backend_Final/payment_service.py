@@ -26,10 +26,11 @@ class CreatePaymentRequest(BaseModel):
     description: str
 
 class MakePaymentRequest(BaseModel):
-    customerId: int
+    accountId: str
+    customerId: str
 
 # URL tới Account Service (cần implement bên account_service)
-ACCOUNT_SERVICE_URL = "http://127.0.0.1:8002/account_service"
+ACCOUNT_SERVICE_URL = "http://127.0.0.1:8001/account"
 
 # ================== Exception Handler ==================
 @app.exception_handler(Exception)
@@ -74,6 +75,8 @@ def find_unpaid_payment(customerId: int):
         if not row:
             raise HTTPException(status_code=404, detail="No unpaid payment found")
         return {"transactionId": row[0], "amount": row[1], "status": row[2]}
+    except HTTPException:  # để nguyên 404 cho FastAPI xử lý
+        raise
     except Exception as e:
         logging.error(f"Error finding unpaid payment: {e}")
         raise HTTPException(status_code=500, detail="Error finding unpaid payment")
@@ -97,6 +100,7 @@ def make_payment(data: MakePaymentRequest):
             raise HTTPException(status_code=404, detail="No unpaid payment found")
 
         transactionId, amount = row
+        logging.info("Thanh cong buoc lay unpaid payment")
 
         # Gọi sang Account Service để lấy balance
         try:
@@ -108,23 +112,38 @@ def make_payment(data: MakePaymentRequest):
             logging.error(f"Cannot connect to Account Service: {e}")
             raise HTTPException(status_code=503, detail="Account Service unavailable")
 
-        balance = float(account["balance"])
+        logging.info("Thanh cong buoc lay Account info")
+
+        logging.info(f"Account: {account}")
+        # balance = float(account["balance"])
+        balance = account[0]["balance"]
+
+        logging.info(f"Balance: {balance}")
+        logging.info(f"Amount: {amount}")
+
         if balance < amount:
             logging.warning(f"Customer {data.customerId} insufficient funds. Balance: {balance}, Need: {amount}")
             raise HTTPException(status_code=400, detail="Insufficient funds")
+        
+        logging.info("Thanh cong buoc lay balance va so sanh balance")
+
 
         # Gọi API update_balance bên Account Service
         try:
-            update_res = requests.post(
-                f"{ACCOUNT_SERVICE_URL}/update_balance",
-                json={"customerId": data.customerId, "amount": amount},
+            update_res = requests.put(
+                f"{ACCOUNT_SERVICE_URL}/updateBalance",
+                json={"account_id": data.accountId, "amount": float(amount), "description": ""},
                 timeout=5
             )
             if update_res.status_code != 200:
-                raise HTTPException(status_code=400, detail="Balance update failed")
+                # raise HTTPException(status_code=400, detail="Balance update failed")
+                raise HTTPException(status_code=400, detail=update_res.detail)
         except requests.exceptions.RequestException as e:
             logging.error(f"Update balance API error: {e}")
             raise HTTPException(status_code=503, detail="Account Service unavailable during balance update")
+        
+        logging.info("Thanh cong buoc update balance")
+
 
         # Update status payment → paid
         cur.execute(
@@ -132,6 +151,9 @@ def make_payment(data: MakePaymentRequest):
             (f"Paid {amount}", transactionId)
         )
         conn.commit()
+
+        logging.info("Thanh cong buoc update status")
+
 
         logging.info(f"Payment {transactionId} for customer {data.customerId} marked as PAID")
         return {"message": "Payment successful", "transactionId": transactionId, "status": "paid"}

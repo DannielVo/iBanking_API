@@ -101,8 +101,16 @@ def update_balance(data: BalanceUpdate):
     account = find_account_by_id(data.account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+    
+    logging.info(f"Balance: {account.balance}")
+    logging.info(f"Amount: {data.amount}")
+    
+
     # Tính số dư mới
-    new_balance = account.balance + data.amount
+    new_balance = account.balance - data.amount
+    
+    logging.info(f"New balance: {new_balance}")
+
     if new_balance < 0:
         raise HTTPException(status_code=400, detail="Insufficient funds")
 
