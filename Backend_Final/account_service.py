@@ -23,17 +23,20 @@ class AccountResponse(Account):   # kế thừa từ Account
 class BalanceUpdate(BaseModel):
     account_id: str
     amount: float
-    description: str # có cần thiết phải có cái này không, mục đích của nó là gì
+    description: str 
     
 def get_connection():
     return pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=DESKTOP-ITBGSRM\MSSQLSERVER01;" # Thay bằng tên sever trên máy đang chạy
+        "SERVER=DESKTOP-PV9Q0OQ\SQLEXPRESS;" # Thay bằng tên sever trên máy đang chạy
         "DATABASE=AccountDB;"
         "Trusted_Connection=yes;"
     )    
-
-CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers" # Lấy URL gốc của customer_service
+    
+# Lấy URL gốc của customer_service
+CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers" 
+# Email Service URL
+EMAIL_SERVICE_URL = "http://127.0.0.1:8005/email/send"
 
 # Xử lý lỗi hệ thống (500) toàn cục
 @app.exception_handler(Exception)
@@ -44,13 +47,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error. Please try again later."},
     )  
     
-@app.get("/account/{customer_id}",response_model=list[Account])
+@app.get("/account/{customer_id}",response_model=Account)
 def getAccountinfo(customer_id : str):
     res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}",timeout=5)
     connct = get_connection()
     cur = connct.cursor()
     cur.execute("SELECT customer_id, account_id, balance FROM account WHERE customer_id = ?", customer_id)
-    row = cur.fetchall() 
+    row = cur.fetchone() 
     try:
         # Trả về thành công
         if res.status_code == 200:
@@ -93,24 +96,62 @@ def find_account_by_id(account_id: str):
         )
     finally:
         conn.close()
-      
-      
+
+# Lấy email khách hàng từ Customer Service
+def get_customer_email(customer_id: str) -> str:
+    try:
+        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            return data.get("email")
+        elif res.status_code == 404:
+            raise HTTPException(status_code=404, detail="Customer not found in Customer Service")
+        else:
+            raise HTTPException(status_code=502, detail="Customer Service error")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Customer Service unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Customer Service unavailable")
+    
+# Lấy tên khách hàng
+def get_customer_name(customer_id: str) -> str:
+    try:
+        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            return data.get("full_name")
+        elif res.status_code == 404:
+            raise HTTPException(status_code=404, detail="Customer not found in Customer Service")
+        else:
+            raise HTTPException(status_code=502, detail="Customer Service error")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Customer Service unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Customer Service unavailable")
+
+# Hàm gửi email bằng cách gọi sang Email Service
+def notify_email(recipient: str, subject: str, body: str):
+    payload = {
+        "toList": [recipient],
+        "subject": subject,
+        "body": body
+    }
+    try:
+        res = requests.post(EMAIL_SERVICE_URL, json=payload, timeout=5)
+        if res.status_code != 200:
+            logging.error(f"Email service returned {res.status_code}: {res.text}")
+            return False
+        return True
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to connect to Email Service: {e}")
+        return False      
+    
 @app.put("/account/updateBalance",response_model=AccountResponse)
 def update_balance(data: BalanceUpdate):
     # Lấy account theo account_id từ DB
     account = find_account_by_id(data.account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
-    logging.info(f"Balance: {account.balance}")
-    logging.info(f"Amount: {data.amount}")
-    
-
     # Tính số dư mới
     new_balance = account.balance - data.amount
-    
-    logging.info(f"New balance: {new_balance}")
-
     if new_balance < 0:
         raise HTTPException(status_code=400, detail="Insufficient funds")
 
@@ -133,6 +174,34 @@ def update_balance(data: BalanceUpdate):
         raise HTTPException(status_code=500, detail="Database error")
     finally:
         conn.close()
+    
+    # Lấy email khách hàng từ Customer Service
+    customer_email = get_customer_email(account.customer_id)
+    customer_name = get_customer_name(account.customer_id)
+    # Gọi Email Service để gửi thông báo
+    subject = "Account Balance Updated"
+    body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333; background-color: #f8f9fa; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+        <h2 style="color: #2E86C1; text-align:center;">iBanking - Account Balance Update</h2>
+        <p>Dear <b>{customer_name}</b>,</p>
+        <p>Your account <b>{account.account_id}</b> has been updated successfully.</p>
+        <p>
+            <b>💰 New Balance:</b> <span style="color:green;">{new_balance:,.2f} VND</span><br>
+            <b>📝 Description:</b> {data.description}
+        </p>
+        <p style="margin-top:20px;">Thank you for using <b>iBanking</b>.</p>
+        <hr>
+        <footer style="font-size:12px; text-align:center; color:#999;">
+            © 2025 iBanking - All rights reserved
+        </footer>
+        </div>
+    </body>
+    </html>
+    """
+    # Muốn test thì thay customer_email thành gmail của mình
+    notify_email("phattinhoc2017@gmail.com", subject, body)
     
     return AccountResponse(
     customer_id=account.customer_id,
