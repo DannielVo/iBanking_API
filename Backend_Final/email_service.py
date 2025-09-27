@@ -67,20 +67,55 @@ def send_confirmation_email(request: EmailConfirmationRequest):
         subject = "Payment Confirmation Email - Elevate iBanking"
         body = f"""
         <html>
-          <body style="font-family: Arial, sans-serif; color: #333;">
-            <h2 style="color:#2E86C1;">Elevate iBanking - Payment Confirmation</h2>
-            <p>Dear Customer,</p>
-            <p>This is a confirmation email from <b>Elevate iBanking</b>.</p>
-            <p>Please use the OTP code below to enter in the web application:</p>
-            <h3 style="color:#E74C3C; font-size: 24px;">🔑 {otp_code}</h3>
-            <p style="color:#D35400;"><b>⚠️ Note:</b> This OTP will expire in 2 minutes.</p>
-            <br>
-            <p>Thank you for using our service.</p>
-            <hr>
-            <footer style="font-size:12px; color:#888;">
-              © 2025 Elevate iBanking - All rights reserved
+        <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; padding: 20px; color: #333;">
+            <div style="max-width: 600px; margin: auto; background: #fff;
+                        padding: 20px; border-radius: 10px; 
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <h2 style="color: #2E86C1; text-align: center; margin-bottom: 20px;">
+                Elevate iBanking - Payment Confirmation
+            </h2>
+
+            <!-- Greeting -->
+            <p style="font-size: 16px;">Dear <b>Customer</b>,</p>
+
+            <!-- Message -->
+            <p style="font-size: 15px; line-height: 1.6;">
+                This is a confirmation email from <b>Elevate iBanking</b>.
+                Please use the OTP code below to enter in the web application:
+            </p>
+
+            <!-- OTP Box -->
+            <div style="text-align: center; margin: 20px 0;">
+                <span style="display: inline-block; 
+                            padding: 12px 20px; 
+                            font-size: 22px; 
+                            font-weight: bold; 
+                            color: #fff; 
+                            background: #E74C3C; 
+                            border-radius: 8px;">
+                {otp_code}
+                </span>
+            </div>
+
+            <!-- Note -->
+            <p style="font-size: 14px; color: #D35400;">
+                <b>Note:</b> This OTP will expire in <b>2 minutes</b>.
+            </p>
+
+            <!-- Footer -->
+            <p style="margin-top: 30px; font-size: 14px;">
+                Thank you for using our service.  
+                <br>
+                — <b>Elevate iBanking Team</b>
+            </p>
+            <hr style="margin: 20px 0;">
+            <footer style="font-size: 12px; text-align: center; color: #999;">
+                © 2025 Elevate iBanking - All rights reserved
             </footer>
-          </body>
+            </div>
+        </body>
         </html>
         """
 

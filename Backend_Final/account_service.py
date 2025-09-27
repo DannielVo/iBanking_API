@@ -188,8 +188,8 @@ def update_balance(data: BalanceUpdate):
         <p>Dear <b>{customer_name}</b>,</p>
         <p>Your account <b>{account.account_id}</b> has been updated successfully.</p>
         <p>
-            <b>💰 New Balance:</b> <span style="color:green;">{new_balance:,.2f} VND</span><br>
-            <b>📝 Description:</b> {data.description}
+            <b>New Balance:</b> <span style="color:green;">{new_balance:,.2f} VND</span><br>
+            <b>Description:</b> {data.description}
         </p>
         <p style="margin-top:20px;">Thank you for using <b>iBanking</b>.</p>
         <hr>
