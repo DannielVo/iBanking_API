@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 def get_connection():
     return pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=ADIDAPHAT\\MSSQLSERVER01;"
+        "SERVER=DESKTOP-PV9Q0OQ\SQLEXPRESS;"
         "DATABASE=PaymentDB;"
         "Trusted_Connection=yes;"
     )
@@ -115,8 +115,8 @@ def make_payment(data: MakePaymentRequest):
         logging.info("Thanh cong buoc lay Account info")
 
         logging.info(f"Account: {account}")
-        # balance = float(account["balance"])
-        balance = account[0]["balance"]
+        balance = float(account["balance"])
+        # balance = account["balance"]
 
         logging.info(f"Balance: {balance}")
         logging.info(f"Amount: {amount}")
