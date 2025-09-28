@@ -98,22 +98,19 @@ def login(data: LoginRequest):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT userId, password_hash FROM authentication WHERE username = ?", (data.username,))
+        cur.execute("SELECT userId, customer_id, password_hash FROM authentication WHERE username = ?", (data.username,))
         row = cur.fetchone()
         if not row:
             logging.warning(f"Login failed for non-existent user {data.username}")
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
-        user_id, password_hash = row
+        user_id, customer_id, password_hash = row
         if not verify_password(data.password, password_hash):
             logging.warning(f"Login failed for user {data.username} due to wrong password")
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
-        # logging.info(f"User {data.username} logged in successfully")
-        # return {"message": "Login successful", "userId": user_id}
-
         access_token = create_access_token(data={"sub": data.username})
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer", "customerId": customer_id}
     finally:
         conn.close()
 

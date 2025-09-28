@@ -17,13 +17,14 @@ GO
 -- Bảng authentication
 CREATE TABLE authentication (
     userId INT IDENTITY(1,1) PRIMARY KEY,
+    customer_id NVARCHAR(50),
     username NVARCHAR(100) UNIQUE NOT NULL,
     password_hash NVARCHAR(255) NOT NULL
 );
 GO
 
-INSERT INTO authentication (username, password_hash)
+INSERT INTO authentication (username, customer_id, password_hash)
 VALUES 
-('a@example.com', '$2b$12$S4FIC9fmS5Mg2BEA5hjIGOLIlI1WBQhg.sOU6Ht0G9xH2eHsbgVAe'),
-('b@example.com', '$2b$12$vwLOSggSsGjAoV3gic2fIuGcyDf.q1d8nhd0a4nM6AFG286Ba.COW');
+('a@example.com', '101', '$2b$12$wwN5O.TbLDNeYYR3pHZfWusdUCwcXLZTzXK4P2F15p5DG3LY1KxhW'),
+('b@example.com', '102', '$2b$12$wwN5O.TbLDNeYYR3pHZfWusdUCwcXLZTzXK4P2F15p5DG3LY1KxhW');
 GO
