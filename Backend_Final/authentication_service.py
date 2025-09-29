@@ -9,6 +9,7 @@ from fastapi import Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from fastapi.middleware.cors import CORSMiddleware
 
 # ===== Cấu hình JWT =====
 SECRET_KEY = "supersecret"
@@ -17,6 +18,22 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="Authentication Service")
 security = HTTPBearer()
+
+# Cho phép origin từ React
+origins = [
+    "http://localhost:5173",   # Vite dev server
+    "http://127.0.0.1:5173",   # phòng khi anh mở bằng IP thay vì localhost
+    # có thể thêm domain production sau này, ví dụ:
+    # "https://mybankingapp.com"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,        # danh sách origin được phép
+    allow_credentials=True,
+    allow_methods=["*"],          # GET, POST, PUT, DELETE...
+    allow_headers=["*"],          # cho phép mọi header
+)
 
 # OAuth2PasswordBearer sẽ làm Swagger UI hiện nút Authorize
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
