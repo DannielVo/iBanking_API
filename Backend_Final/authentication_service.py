@@ -22,9 +22,8 @@ security = HTTPBearer()
 # Cho phép origin từ React
 origins = [
     "http://localhost:5173",   # Vite dev server
-    "http://127.0.0.1:5173",   # phòng khi anh mở bằng IP thay vì localhost
-    # có thể thêm domain production sau này, ví dụ:
-    # "https://mybankingapp.com"
+    "http://127.0.0.1:5173",   
+    # có thể thêm domain production sau này
 ]
 
 app.add_middleware(
