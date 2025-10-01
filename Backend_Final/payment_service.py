@@ -4,8 +4,24 @@ from pydantic import BaseModel
 import logging
 import pyodbc
 import requests
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Payment Service")
+
+# Cho phép origin từ React
+origins = [
+    "http://localhost:5173",   # Vite dev server
+    "http://127.0.0.1:5173",   
+    # có thể thêm domain production sau này
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,        # danh sách origin được phép
+    allow_credentials=True,
+    allow_methods=["*"],          # GET, POST, PUT, DELETE...
+    allow_headers=["*"],          # cho phép mọi header
+)
 
 # ================== Logging ==================
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
