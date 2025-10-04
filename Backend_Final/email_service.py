@@ -4,11 +4,27 @@ from pydantic import BaseModel
 from datetime import datetime
 from send_email import send_email_v1, send_bulk_email, get_email_logs
 import requests
+from fastapi.middleware.cors import CORSMiddleware
 
 OTP_SERVICE_URL = "http://127.0.0.1:8004/otp/generate"
 CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers"
 
 app = FastAPI()
+
+# Cho phép origin từ React
+origins = [
+    "http://localhost:5173",   # Vite dev server
+    "http://127.0.0.1:5173",   
+    # có thể thêm domain production sau này
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,        # danh sách origin được phép
+    allow_credentials=True,
+    allow_methods=["*"],          # GET, POST, PUT, DELETE...
+    allow_headers=["*"],          # cho phép mọi header
+)
 
 class EmailConfirmationRequest(BaseModel):
     customerId: str
