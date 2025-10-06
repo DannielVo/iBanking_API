@@ -42,8 +42,12 @@ class CreatePaymentRequest(BaseModel):
     description: str
 
 class MakePaymentRequest(BaseModel):
+    # accountId là của thg login
     accountId: str
+    # customerId là thg login
     customerId: str
+    # customerPaymentId là thg đc trả tiền
+    customerPaymentId: str 
 
 # URL tới Account Service (cần implement bên account_service)
 ACCOUNT_SERVICE_URL = "http://127.0.0.1:8001/account"
@@ -108,8 +112,9 @@ def make_payment(data: MakePaymentRequest):
     try:
         # Lấy unpaid payment
         cur.execute(
+            # Lấy amount của thg đc trả tiền
             "SELECT TOP 1 transactionId, amount FROM payment WHERE customerId = ? AND status = 'unpaid'",
-            (data.customerId,)
+            (data.customerPaymentId,)
         )
         row = cur.fetchone()
         if not row:
@@ -120,6 +125,7 @@ def make_payment(data: MakePaymentRequest):
 
         # Gọi sang Account Service để lấy balance
         try:
+            # Lấy balance của thg login
             res = requests.get(f"{ACCOUNT_SERVICE_URL}/{data.customerId}", timeout=5)
             if res.status_code != 200:
                 raise HTTPException(status_code=404, detail="Account not found")
@@ -161,7 +167,7 @@ def make_payment(data: MakePaymentRequest):
         logging.info("Thanh cong buoc update balance")
 
 
-        # Update status payment → paid
+        # Update status payment → paid (update payment của thg đc trả tiền)
         cur.execute(
             "UPDATE payment SET status = 'paid', transaction_history = ? WHERE transactionId = ?",
             (f"Paid {amount}", transactionId)
@@ -171,7 +177,7 @@ def make_payment(data: MakePaymentRequest):
         logging.info("Thanh cong buoc update status")
 
 
-        logging.info(f"Payment {transactionId} for customer {data.customerId} marked as PAID")
+        logging.info(f"Payment {transactionId} for customer {data.customerPaymentId} marked as PAID")
         return {"message": "Payment successful", "transactionId": transactionId, "status": "paid"}
 
     except HTTPException:

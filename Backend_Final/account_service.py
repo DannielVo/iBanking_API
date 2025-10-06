@@ -199,24 +199,24 @@ def update_balance(data: BalanceUpdate):
     <html>
     <body style="font-family: Arial, sans-serif; color: #333; background-color: #f8f9fa; padding: 20px;">
         <div style="max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-        <h2 style="color: #2E86C1; text-align:center;">iBanking - Account Balance Update</h2>
+        <h2 style="color: #2E86C1; text-align:center;">Elevate iBanking - Account Balance Update</h2>
         <p>Dear <b>{customer_name}</b>,</p>
         <p>Your account <b>{account.account_id}</b> has been updated successfully.</p>
         <p>
             <b>New Balance:</b> <span style="color:green;">{new_balance:,.2f} VND</span><br>
             <b>Description:</b> {data.description}
         </p>
-        <p style="margin-top:20px;">Thank you for using <b>iBanking</b>.</p>
+        <p style="margin-top:20px;">Thank you for using <b>Elevate iBanking</b>.</p>
         <hr>
         <footer style="font-size:12px; text-align:center; color:#999;">
-            © 2025 iBanking - All rights reserved
+            © 2025 Elevate iBanking - All rights reserved
         </footer>
         </div>
     </body>
     </html>
     """
     # Muốn test thì thay customer_email thành gmail của mình
-    notify_email("phattinhoc2017@gmail.com", subject, body)
+    notify_email(customer_email, subject, body)
     
     return AccountResponse(
     customer_id=account.customer_id,
