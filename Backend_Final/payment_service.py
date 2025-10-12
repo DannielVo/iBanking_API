@@ -7,8 +7,24 @@ import requests
 import json
 import decimal
 import threading
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Payment Service")
+
+# Cho phép origin từ React
+origins = [
+    "http://localhost:5173",   # Vite dev server
+    "http://127.0.0.1:5173",   
+    # có thể thêm domain production sau này
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,        # danh sách origin được phép
+    allow_credentials=True,
+    allow_methods=["*"],          # GET, POST, PUT, DELETE...
+    allow_headers=["*"],          # cho phép mọi header
+)
 
 # ================== Logging ==================
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -31,7 +47,7 @@ class CreatePaymentRequest(BaseModel):
 class MakePaymentRequest(BaseModel):
     customerId: str
     customerPaymentId: str
-    account_id: str
+    accountId: str
 
 # ================== Global Lock Dictionary ==================
 # Dùng để đảm bảo không 2 giao dịch cùng lúc trên cùng 1 tài khoản
@@ -170,7 +186,7 @@ def make_payment(data: MakePaymentRequest):
         logging.info(f"Balance - Amount: {balance - amount}")
 
         # --- Cập nhật số dư bên Account Service ---
-        update_payload = {"account_id": data.account_id, "amount": amount, "description": ""}
+        update_payload = {"account_id": data.accountId, "amount": amount, "description": ""}
         try:
             update_res = requests.put(
                 f"{ACCOUNT_SERVICE_URL}/updateBalance",
