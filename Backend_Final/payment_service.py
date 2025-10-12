@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 def get_connection():
     return pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=ADIDAPHAT\\MSSQLSERVER01;"
+        "SERVER=DESKTOP-PV9Q0OQ\SQLEXPRESS;"
         "DATABASE=PaymentDB;"
         "Trusted_Connection=yes;"
     )
@@ -29,7 +29,9 @@ class CreatePaymentRequest(BaseModel):
     description: str
 
 class MakePaymentRequest(BaseModel):
-    customerId: int
+    customerId: str
+    customerPaymentId: str
+    account_id: str
 
 # ================== Global Lock Dictionary ==================
 # Dùng để đảm bảo không 2 giao dịch cùng lúc trên cùng 1 tài khoản
@@ -50,7 +52,7 @@ def decimal_default(obj):
     raise TypeError
 
 # ================== URL tới Account Service ==================
-ACCOUNT_SERVICE_URL = "http://127.0.0.1:8000/account"
+ACCOUNT_SERVICE_URL = "http://127.0.0.1:8001/account"
 
 # ================== Exception Handler ==================
 @app.exception_handler(Exception)
@@ -108,6 +110,8 @@ def find_unpaid_payment(customerId: int):
 def make_payment(data: MakePaymentRequest):
     lock = get_lock_for_customer(data.customerId)
 
+    logging.info("Da qua buoc get customer lock")
+
     # Thử acquire lock để ngăn giao dịch song song cùng tài khoản
     if not lock.acquire(blocking=False):
         logging.warning(f"Concurrent transaction detected for customer {data.customerId}.")
@@ -117,10 +121,11 @@ def make_payment(data: MakePaymentRequest):
     cur = conn.cursor()
 
     try:
+        logging.info("Da qua buoc get lock")
         # --- Kiểm tra unpaid payment (sau khi đã khóa tài khoản) ---
         cur.execute(
             "SELECT TOP 1 transactionId, amount FROM payment WHERE customerId = ? AND status = 'unpaid'",
-            (data.customerId,)
+            (data.customerPaymentId,)
         )
         row = cur.fetchone()
         if not row:
@@ -128,6 +133,8 @@ def make_payment(data: MakePaymentRequest):
 
         transactionId, amount = row
         amount = float(amount)
+
+        logging.info("Da qua buoc get unpaid")
 
         # --- Lấy thông tin tài khoản từ Account Service ---
         try:
@@ -146,18 +153,27 @@ def make_payment(data: MakePaymentRequest):
             account = account_data
         else:
             raise HTTPException(status_code=500, detail="Invalid account data format")
+        
+        logging.info("Da qua buoc get account")
 
-        balance = float(account.get("balance", 0))
+        # balance = float(account.get("balance", 0))
+        balance = float(account["balance"])
+
+        logging.info("Da qua buoc get balance")
 
         if balance < amount:
             logging.warning(f"Customer {data.customerId} insufficient funds. Balance: {balance}, Need: {amount}")
             raise HTTPException(status_code=400, detail="Insufficient funds")
+        
+        logging.info(f"Balance: {balance}")
+        logging.info(f"Amount: {amount}")
+        logging.info(f"Balance - Amount: {balance - amount}")
 
         # --- Cập nhật số dư bên Account Service ---
-        update_payload = {"customerId": data.customerId, "amount": amount}
+        update_payload = {"account_id": data.account_id, "amount": amount, "description": ""}
         try:
-            update_res = requests.post(
-                f"{ACCOUNT_SERVICE_URL}/update_balance",
+            update_res = requests.put(
+                f"{ACCOUNT_SERVICE_URL}/updateBalance",
                 json=update_payload,
                 timeout=5
             )
@@ -166,6 +182,8 @@ def make_payment(data: MakePaymentRequest):
         except requests.exceptions.RequestException as e:
             logging.error(f"Update balance API error: {e}")
             raise HTTPException(status_code=503, detail="Account Service unavailable during balance update")
+        
+        logging.info("Da qua buoc update balance")
 
         # --- Đánh dấu thanh toán hoàn tất ---
         cur.execute(
@@ -173,6 +191,8 @@ def make_payment(data: MakePaymentRequest):
             (f"Paid {amount}", transactionId)
         )
         conn.commit()
+
+        logging.info("Da qua buoc update payment")
 
         result = {
             "message": "Payment successful",
@@ -197,4 +217,4 @@ def make_payment(data: MakePaymentRequest):
 # ================== Run ==================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8006)
+    uvicorn.run(app, host="127.0.0.1", port=8003)
