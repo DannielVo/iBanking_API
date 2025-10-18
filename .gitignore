@@ -1,0 +1,7 @@
+# Bỏ qua tất cả các thư mục __pycache__ ở mọi nơi
+__pycache__/
+**/__pycache__/
+
+# Bỏ qua tất cả các thư mục venv ở mọi nơi
+venv/
+**/venv/

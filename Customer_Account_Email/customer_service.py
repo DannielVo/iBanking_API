@@ -1,4 +1,3 @@
-import uvicorn 
 from fastapi import FastAPI,HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from fastapi.responses import JSONResponse

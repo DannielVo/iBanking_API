@@ -1,27 +1,29 @@
-# iBanking API – Customer & Account Services
+# iBanking API – Customer, Account & Email Services
 
 ## 📌 Introduction
-This project provides a **backend system for iBanking** using **FastAPI**.  
-It is divided into two main microservices:  
+This project is a **microservice-based iBanking backend** built with **FastAPI**.  
+It includes 3 services:
 
-- **Customer Service**: manages customer information and tuition fees.  
-- **Account Service**: manages accounts, balances, and balance updates (deposit/withdraw).  
+- **Customer Service** → manage customers & tuition fees  
+- **Account Service** → manage accounts & balances (deposit/withdraw)  
+- **Email Service** → send notifications via Gmail API  
 
-The system is designed to support online tuition payment workflows.
+The system demonstrates a workflow for **online tuition payment**.
 
 ---
 
 ## ⚙️ System Requirements
 - **Python**: 3.11+  
-- **SQL Server** installed and running  
+- **SQL Server** installed & running  
 - **ODBC Driver**: ODBC Driver 17 for SQL Server  
-
+- **Google Account** with Gmail API enabled  
 ### Required Python Libraries
 - [FastAPI](https://fastapi.tiangolo.com/) — main framework for building APIs  
 - [Uvicorn](https://www.uvicorn.org/) — ASGI server to run FastAPI  
 - [Pydantic](https://docs.pydantic.dev/) — data validation (BaseModel, EmailStr, Field)  
 - [Requests](https://docs.python-requests.org/) — HTTP client, used in Account Service to call Customer Service  
-- [PyODBC](https://github.com/mkleehammer/pyodbc) — SQL Server connector
+- [PyODBC](https://github.com/mkleehammer/pyodbc) — SQL Server connector  
+- [Google API Client](https://github.com/googleapis/google-api-python-client) — Gmail API integration  
 
 You can install all dependencies via:
 ```bash
@@ -46,7 +48,7 @@ pip install -r requirements.txt
        return pyodbc.connect(
            "DRIVER={ODBC Driver 17 for SQL Server};"
            "SERVER=DESKTOP-ITBGSRM\\MSSQLSERVER01;"  # Replace with your actual SQL Server name
-           "DATABASE=AccountDB;"
+           "DATABASE=AccountDB;" # Name of database
            "Trusted_Connection=yes;"
        )
    ```
@@ -65,6 +67,7 @@ pip install -r requirements.txt
    - Ensure the following databases exist:  
      - `CustomerDB` → table `Customers`  
      - `AccountDB` → table `Account`
+     - `EmailDB` → table `Email`
 
 3. **Run the Services**
    - Customer Service (port 8000):
@@ -75,94 +78,54 @@ pip install -r requirements.txt
      ```bash
      uvicorn account_service:app --reload --port 8001
      ```
+   - Email Service (port 8005):
+     ```bash
+     uvicorn email_service:app --reload --port 8005
+     ```
 
 4. **Access API Documentation**
    - Swagger UI:
      - [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) → Customer Service  
      - [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) → Account Service  
+     - [http://127.0.0.1:8005/docs](http://127.0.0.1:8005/docs) → Email Service  
+
 
 ---
 
 ## 📂 Project Structure
 ```
+## 📂 Project Structure
 Customer_Account_Email/
 │
-├── account_service.py        # Account service (balance management)
-├── customer_service.py       # Customer service (customer info & tuition debt)
-├── account_serviceDB.sql     # SQL script for AccountDB
-├── customer_serviceDB.sql    # SQL script for CustomerDB
-├── requirements.txt          # Dependencies
-└── README.md                 # Documentation
+├── account_service.py          # Account service (balance management & notifications)
+├── customer_service.py         # Customer service (customer info & tuition debt)
+├── email_service.py            # Email service (send emails via Gmail API)
+├── send_email.py               # Custom module for Gmail OAuth2 and email sending
+│
+├── account_serviceDB.sql       # SQL script for AccountDB
+├── customer_serviceDB.sql      # SQL script for CustomerDB
+├── email_serviceDB.sql         # SQL script for EmailDB
+│
+├── requirements.txt            # Python dependencies
+├── credentials_desktop_apps.json  # Gmail OAuth2 client (keep secret)
+└── README.md                   # Project documentation
+
 ```
 ---
 
 ## 📝 Notes
-- In `BalanceUpdate`, the `description` field is recommended for transaction logging (e.g., "Pay tuition fee"). To fully support it, consider creating a `TransactionHistory` table.  
-- Always check your SQL Server connection string carefully to avoid errors.  
-- Use Swagger UI (`/docs`) for quick testing of APIs.  
-- Run each service on a separate port to avoid conflicts.  
+- In `BalanceUpdate`, the `description` field is recommended for transaction logging (e.g., "Pay tuition fee").  
+  To fully support this, consider creating a `TransactionHistory` table to store all account operations.  
+- Always double-check your SQL Server connection string to avoid login errors.  
+- Use Swagger UI (`/docs`) for quick testing of APIs in your browser.  
+- Run each service on a separate port to prevent conflicts:  
+  - Customer → 8000  
+  - Account → 8001  
+  - Email → 8005  
+- `send_email.py` is a custom utility file in this project (not an external dependency).
+
+- Keep `credentials_desktop_apps.json` and `token.json` private.  
 
 ---
 
-## 📊 Usage Examples
 
-### ✅ Get Customer Info
-**Request**
-```http
-GET /customers/101
-```
-
-**Response**
-```json
-{
-  "customer_id": "101",
-  "full_name": "Nguyen Van A",
-  "phone_number": "0909123456",
-  "email": "a@example.com",
-  "tuition_debt": 500000.0
-}
-```
-
-### ✅ Get Accounts by Customer
-**Request**
-```http
-GET /account/101
-```
-
-**Response**
-```json
-[
-  {
-    "customer_id": "101",
-    "account_id": "ACC001",
-    "balance": 500000.0
-  },
-  {
-    "customer_id": "101",
-    "account_id": "ACC002",
-    "balance": 2000000.0
-  }
-]
-```
-
-### ✅ Update Balance
-**Request**
-```http
-PUT /account/updateBalance
-
-{
-  "account_id": "ACC001",
-  "amount": -200000,
-  "description": "Pay tuition fee"
-}
-```
-
-**Response**
-```json
-{
-  "customer_id": "101",
-  "account_id": "ACC001",
-  "balance": 300000.0,
-  "status": "Success"
-}
-```
