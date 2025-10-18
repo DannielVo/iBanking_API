@@ -159,10 +159,13 @@ def notify_email(recipient: str, subject: str, body: str):
         logging.error(f"Failed to connect to Email Service: {e}")
         return False      
     
-@app.put("/account/updateBalance",response_model=AccountResponse)
+@app.put("/account/update-balance",response_model=AccountResponse)
 def update_balance(data: BalanceUpdate):
+    logging.info("Get account by id")
+
     # Lấy account theo account_id từ DB
     account = find_account_by_id(data.account_id)
+
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     # Tính số dư mới
@@ -173,6 +176,8 @@ def update_balance(data: BalanceUpdate):
     # Chặn amount = 0
     if data.amount == 0:
         raise HTTPException(status_code=400, detail="Amount must be non-zero")
+    
+    logging.info("Chuan bi cap nhat balance")
 
     # Cập nhật DB trong transaction
     conn = get_connection()
@@ -190,6 +195,7 @@ def update_balance(data: BalanceUpdate):
     finally:
         conn.close()
     
+    logging.info("Chuan bi gui mail")
     # Lấy email khách hàng từ Customer Service
     customer_email = get_customer_email(account.customer_id)
     customer_name = get_customer_name(account.customer_id)

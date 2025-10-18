@@ -127,8 +127,19 @@ def login(data: LoginRequest):
 
         access_token = create_access_token(data={"sub": data.username})
         return {"access_token": access_token, "token_type": "bearer", "customerId": customer_id}
+    
+    except HTTPException as http_exc:
+        # Các lỗi có chủ ý (404, 403) vẫn trả như bình thường
+        raise http_exc
+    
+    except Exception as e:
+        # Các lỗi khác -> 500
+        logging.error(f"Unexpected error in login: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 @app.get("/secure-data")
 def get_secure_data(credentials: HTTPAuthorizationCredentials = Depends(security)):

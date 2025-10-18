@@ -189,7 +189,7 @@ def make_payment(data: MakePaymentRequest):
         update_payload = {"account_id": data.accountId, "amount": amount, "description": ""}
         try:
             update_res = requests.put(
-                f"{ACCOUNT_SERVICE_URL}/updateBalance",
+                f"{ACCOUNT_SERVICE_URL}/update-balance",
                 json=update_payload,
                 timeout=5
             )
