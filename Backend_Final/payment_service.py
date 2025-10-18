@@ -115,6 +115,11 @@ def find_unpaid_payment(customerId: int):
 
         result = {"transactionId": row[0], "amount": float(row[1]), "status": row[2]}
         return JSONResponse(content=json.loads(json.dumps(result, default=decimal_default)))
+    
+    except HTTPException as http_exc:
+        # Các lỗi có chủ ý (404, 403) vẫn trả như bình thường
+        raise http_exc
+    
     except Exception as e:
         logging.error(f"Error finding unpaid payment: {e}")
         raise HTTPException(status_code=500, detail="Error finding unpaid payment")

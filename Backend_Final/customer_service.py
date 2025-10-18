@@ -32,7 +32,6 @@ class Customer(BaseModel):
     full_name: str
     phone_number: Annotated[str, Field(pattern=r"^(0\d{9})$")]# Bắt đầu bằng 0 + 9 số = 10 số
     email: EmailStr 
-    tuition_debt: float = 0.0 # Học phí cần phải đóng
     
 def get_connection():
     return pyodbc.connect(
@@ -57,7 +56,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 def getCustomerInfo(customer_id : str): 
     connct = get_connection()
     cur = connct.cursor()
-    cur.execute("SELECT customer_id, full_name, phone_number, email , tuition_debt FROM Customers WHERE customer_id = ?", customer_id)
+    cur.execute("SELECT customer_id, full_name, phone_number, email FROM Customers WHERE customer_id = ?", customer_id)
     row = cur.fetchone()
     try:
         # Trường hợp 404
@@ -79,26 +78,3 @@ def getCustomerInfo(customer_id : str):
         if connct:
             connct.close()
 
-@app.get("/customers/tuition/{customer_id}")
-def getTuition(customer_id:str):
-    connct = get_connection()
-    try:
-        cur = connct.cursor()
-        cur.execute("SELECT tuition_debt FROM Customers WHERE customer_id = ?", customer_id)
-        row = cur.fetchone()            
-        if not row:
-            raise HTTPException(status_code=404, detail="Customer not found")
-
-        return {"customer_id": customer_id, "tuition_debt": row[0]}
-    
-    except HTTPException as http_exc:
-        # Các lỗi có chủ ý (404, 403) vẫn trả như bình thường
-        raise http_exc
-    except Exception as e:
-        # Các lỗi khác -> 500
-        logging.error(f"Unexpected error in get_customer: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    
-    finally:
-        connct.close()
-        
