@@ -10,12 +10,16 @@ CREATE TABLE payment (
     customerId INT NOT NULL,
     amount DECIMAL(18,2) NOT NULL,
     status VARCHAR(10) CHECK (status IN ('unpaid','paid')) NOT NULL,
-    transaction_history NVARCHAR(255)
+    transaction_history NVARCHAR(255),
+    customerPayId INT,
+    semester NVARCHAR(255),
+    description NVARCHAR(255),
+    datePayment DATETIME
 );
 
 -- Dummy data
-INSERT INTO payment (customerId, amount, status, transaction_history)
-VALUES (101, 900000, 'unpaid', 'Initial unpaid payment for customer 101');
+INSERT INTO payment (customerId, amount, status, transaction_history, customerPayId, semester, description, datePayment)
+VALUES (101, 900000, 'unpaid', 'Initial unpaid payment for customer 101', NULL, 'Semester 1 - 2024/2025', 'Tuition fee', NULL);
 
-INSERT INTO payment (customerId, amount, status, transaction_history)
-VALUES (102, 500000, 'unpaid', 'Initial unpaid payment for customer 102');
+INSERT INTO payment (customerId, amount, status, transaction_history, customerPayId, semester, description, datePayment)
+VALUES (102, 500000, 'unpaid', 'Initial unpaid payment for customer 102', NULL, 'Semester 1 - 2024/2025', 'Tuition fee', NULL);

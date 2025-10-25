@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import logging
@@ -8,6 +9,7 @@ import json
 import decimal
 import threading
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Payment Service")
 
@@ -98,6 +100,53 @@ def create_payment(data: CreatePaymentRequest):
         raise HTTPException(status_code=500, detail="Error creating payment")
     finally:
         conn.close()
+
+# ================== Find Paid Payment ==================
+@app.get("/payment/paid/{customerId}")
+def find_paid_payment(customerId: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        logging.info("Vua vao ham paid")
+        cur.execute(
+            "SELECT transactionId, amount, status, customerId, semester, description, datePayment FROM payment WHERE customerPayId = ? AND status = 'paid'",
+            (customerId,)
+        )
+        rows = cur.fetchall()
+
+        if not rows:
+            raise HTTPException(status_code=404, detail="No paid payments found")
+
+        logging.info(f"Da tim duoc {len(rows)} dong du lieu")
+
+        results = [
+            {
+                "transactionId": row[0],
+                "amount": float(row[1]),
+                "status": row[2],
+                "customerId": row[3],
+                "semester": row[4],
+                "description": row[5],
+                "datePayment": row[6],
+            }
+            for row in rows
+        ]
+
+        logging.info(f"Ket qua la: {results}")
+
+        # Trả về list JSON hợp lệ
+        return JSONResponse(content=jsonable_encoder(results))
+    
+    except HTTPException as http_exc:
+        # Các lỗi có chủ ý (404, 403) vẫn trả như bình thường
+        raise http_exc
+    
+    except Exception as e:
+        logging.error(f"Error finding paid payment: {e}")
+        raise HTTPException(status_code=500, detail="Error finding paid payment")
+    finally:
+        conn.close()
+
 
 # ================== Find Unpaid Payment ==================
 @app.get("/payment/unpaid/{customerId}")
@@ -206,10 +255,12 @@ def make_payment(data: MakePaymentRequest):
         
         logging.info("Da qua buoc update balance")
 
+        datePayment = datetime.utcnow() + timedelta(seconds=120)
+
         # --- Đánh dấu thanh toán hoàn tất ---
         cur.execute(
-            "UPDATE payment SET status = 'paid', transaction_history = ? WHERE transactionId = ?",
-            (f"Paid {amount}", transactionId)
+            "UPDATE payment SET status = 'paid', transaction_history = ?, customerPayId = ?, datePayment = ? WHERE transactionId = ?",
+            (f"Paid {amount}", data.customerId, datePayment, transactionId)
         )
         conn.commit()
 
