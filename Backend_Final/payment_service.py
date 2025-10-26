@@ -119,7 +119,7 @@ def find_paid_payment(customerId: int):
 
         logging.info(f"Da tim duoc {len(rows)} dong du lieu")
 
-        results = [
+        payments = [
             {
                 "transactionId": row[0],
                 "amount": float(row[1]),
@@ -132,11 +132,20 @@ def find_paid_payment(customerId: int):
             for row in rows
         ]
 
-        logging.info(f"Ket qua la: {results}")
+        logging.info(f"Ket qua payment la: {payments}")
+
+        semesters = sorted({p["semester"] for p in payments})
+
+        logging.info(f"Semesters tim duoc: {semesters}")
+
+        response = {
+                "semesters": semesters,
+                "payments": payments
+        }        
 
         # Trả về list JSON hợp lệ
-        return JSONResponse(content=jsonable_encoder(results))
-    
+        return JSONResponse(content=jsonable_encoder(response))
+
     except HTTPException as http_exc:
         # Các lỗi có chủ ý (404, 403) vẫn trả như bình thường
         raise http_exc
