@@ -164,14 +164,14 @@ def find_unpaid_payment(customerId: int):
     cur = conn.cursor()
     try:
         cur.execute(
-            "SELECT TOP 1 transactionId, amount, status FROM payment WHERE customerId = ? AND status = 'unpaid'",
+            "SELECT TOP 1 transactionId, amount, status, semester, description FROM payment WHERE customerId = ? AND status = 'unpaid'",
             (customerId,)
         )
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="No unpaid payment found")
 
-        result = {"transactionId": row[0], "amount": float(row[1]), "status": row[2]}
+        result = {"transactionId": row[0], "amount": float(row[1]), "status": row[2], "semester": row[3], "description": row[4],}
         return JSONResponse(content=json.loads(json.dumps(result, default=decimal_default)))
     
     except HTTPException as http_exc:
