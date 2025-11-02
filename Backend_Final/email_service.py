@@ -5,11 +5,20 @@ from datetime import datetime
 from send_email import send_email_v1, send_bulk_email, get_email_logs
 import requests
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+
+# ===== Cấu hình JWT =====
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 OTP_SERVICE_URL = "http://127.0.0.1:8004/otp/generate"
 CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers"
 
 app = FastAPI()
+security = HTTPBearer()
 
 # Cho phép origin từ React
 origins = [
@@ -25,6 +34,23 @@ app.add_middleware(
     allow_methods=["*"],          # GET, POST, PUT, DELETE...
     allow_headers=["*"],          # cho phép mọi header
 )
+
+# ===== Giải mã và xác thực token =====
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
 
 class EmailConfirmationRequest(BaseModel):
     customerId: str
@@ -54,9 +80,11 @@ class EmailLog(BaseModel):
     time: datetime
 
 # Gọi Customer Service để lấy email
-def get_customer_email(customer_id: str) -> str:
+def get_customer_email(customer_id: str, token: str) -> str:
+    headers = {"Authorization": f"Bearer {token}"}
+
     try:
-        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
             return data.get("email")
@@ -68,13 +96,17 @@ def get_customer_email(customer_id: str) -> str:
         raise HTTPException(status_code=503, detail=f"Customer Service unavailable: {e}")
 
 @app.post("/email/send-confirmation", response_model=EmailSingleResponse, status_code=status.HTTP_200_OK)
-def send_confirmation_email(request: EmailConfirmationRequest):
+def send_confirmation_email(request: EmailConfirmationRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+    headers = {"Authorization": f"Bearer {token}"}
+
     try:
         # Lấy email từ Customer Service
-        recipient_email = get_customer_email(request.customerId)
+        recipient_email = get_customer_email(request.customerId, token)
         
         # Gọi OTP Service
-        res = requests.post(OTP_SERVICE_URL, params={"userId": request.customerId}, timeout=5)
+        res = requests.post(OTP_SERVICE_URL, params={"userId": request.customerId}, headers=headers, timeout=5)
         if res.status_code != 200:
             raise HTTPException(status_code=502, detail="Failed to generate OTP from OTP Service")
 
@@ -147,7 +179,10 @@ def send_confirmation_email(request: EmailConfirmationRequest):
     
 # Dùng cho việc gửi mail update balance bên account service
 @app.post("/email/send", response_model=EmailSingleResponse,status_code=status.HTTP_200_OK)
-def send_single_email(request: EmailRequest):
+def send_single_email(request: EmailRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     if len(request.toList) != 1:
         # Nếu gửi nhiều hơn 1 người → lỗi 400 (Bad Request)
         raise HTTPException(
@@ -164,7 +199,10 @@ def send_single_email(request: EmailRequest):
     return {"success": True, "message": "Email sent successfully."}
 
 @app.post("/email/send-bulk", response_model=EmailBulkResponse,status_code=status.HTTP_200_OK)
-def send_bulk(request: EmailRequest):
+def send_bulk(request: EmailRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     if len(request.toList) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,5 +213,8 @@ def send_bulk(request: EmailRequest):
 
 
 @app.get("/email/logs", response_model=List[EmailLog],status_code=status.HTTP_200_OK)
-def get_logs():
+def get_logs(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     return get_email_logs()

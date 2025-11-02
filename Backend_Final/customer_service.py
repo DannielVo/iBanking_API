@@ -6,8 +6,17 @@ from typing import Annotated
 import logging
 import pyodbc
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+
+# ===== Cấu hình JWT =====
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI()
+security = HTTPBearer()
 
 # Cho phép origin từ React
 origins = [
@@ -41,7 +50,25 @@ def get_connection():
         "Trusted_Connection=yes;"
     )    
     
-    
+
+# ===== Giải mã và xác thực token =====
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+
 # Xử lý lỗi hệ thống (500) toàn cục
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -53,7 +80,10 @@ async def global_exception_handler(request: Request, exc: Exception):
      
    
 @app.get("/customers/{customer_id}",response_model=Customer)
-def getCustomerInfo(customer_id : str): 
+def getCustomerInfo(customer_id : str, credentials: HTTPAuthorizationCredentials = Depends(security)): 
+    token = credentials.credentials
+    payload = verify_token(token)
+    
     connct = get_connection()
     cur = connct.cursor()
     cur.execute("SELECT customer_id, full_name, phone_number, email FROM Customers WHERE customer_id = ?", customer_id)

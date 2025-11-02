@@ -6,8 +6,17 @@ import pyodbc
 from datetime import datetime, timedelta
 import random
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+
+# ===== Cấu hình JWT =====
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="OTP Service")
+security = HTTPBearer()
 
 # Cho phép origin từ React
 origins = [
@@ -43,6 +52,23 @@ def get_connection():
         "Trusted_Connection=yes;"
     )
 
+# ===== Giải mã và xác thực token =====
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
 # ================== Models ==================
 class OTPVerifyRequest(BaseModel):
     userId: int
@@ -50,7 +76,10 @@ class OTPVerifyRequest(BaseModel):
 
 # ================== Endpoints ==================
 @app.post("/otp/generate")
-def generate_otp(userId: int):
+def generate_otp(userId: int, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -67,7 +96,10 @@ def generate_otp(userId: int):
         conn.close()
 
 @app.post("/otp/verify")
-def verify_otp(data: OTPVerifyRequest):
+def verify_otp(data: OTPVerifyRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     conn = get_connection()
     cur = conn.cursor()
     try:

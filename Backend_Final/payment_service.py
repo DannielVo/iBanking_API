@@ -10,8 +10,17 @@ import decimal
 import threading
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
+from fastapi import Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+
+# ===== Cấu hình JWT =====
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="Payment Service")
+security = HTTPBearer()
 
 # Cho phép origin từ React
 origins = [
@@ -39,6 +48,23 @@ def get_connection():
         "DATABASE=PaymentDB;"
         "Trusted_Connection=yes;"
     )
+
+# ===== Giải mã và xác thực token =====
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
 
 # ================== Models ==================
 class CreatePaymentRequest(BaseModel):
@@ -80,7 +106,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ================== Create Payment ==================
 @app.post("/payment/create")
-def create_payment(data: CreatePaymentRequest):
+def create_payment(data: CreatePaymentRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -103,7 +132,10 @@ def create_payment(data: CreatePaymentRequest):
 
 # ================== Find Paid Payment ==================
 @app.get("/payment/paid/{customerId}")
-def find_paid_payment(customerId: int):
+def find_paid_payment(customerId: int, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -159,7 +191,10 @@ def find_paid_payment(customerId: int):
 
 # ================== Find Unpaid Payment ==================
 @app.get("/payment/unpaid/{customerId}")
-def find_unpaid_payment(customerId: int):
+def find_unpaid_payment(customerId: int, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -186,7 +221,11 @@ def find_unpaid_payment(customerId: int):
 
 # ================== Make Payment ==================
 @app.post("/payment/make")
-def make_payment(data: MakePaymentRequest):
+def make_payment(data: MakePaymentRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+    headers = {"Authorization": f"Bearer {token}"}
+    
     lock = get_lock_for_customer(data.customerId)
 
     logging.info("Da qua buoc get customer lock")
@@ -217,7 +256,7 @@ def make_payment(data: MakePaymentRequest):
 
         # --- Lấy thông tin tài khoản từ Account Service ---
         try:
-            res = requests.get(f"{ACCOUNT_SERVICE_URL}/{data.customerId}", timeout=5)
+            res = requests.get(f"{ACCOUNT_SERVICE_URL}/{data.customerId}", headers=headers, timeout=5)
             if res.status_code != 200:
                 logging.error(f"Account Service error: {res.text}")
                 raise HTTPException(status_code=404, detail="Account not found")
@@ -254,6 +293,7 @@ def make_payment(data: MakePaymentRequest):
             update_res = requests.put(
                 f"{ACCOUNT_SERVICE_URL}/update-balance",
                 json=update_payload,
+                headers=headers,
                 timeout=5
             )
             if update_res.status_code != 200:

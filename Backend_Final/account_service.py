@@ -5,8 +5,17 @@ import logging
 import pyodbc   
 import requests
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+
+# ===== Cấu hình JWT =====
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI()
+security = HTTPBearer()
 
 # Cho phép origin từ React
 origins = [
@@ -48,6 +57,24 @@ def get_connection():
         "Trusted_Connection=yes;"
     )    
     
+
+# ===== Giải mã và xác thực token =====
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing subject",
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
 # Lấy URL gốc của customer_service
 CUSTOMER_SERVICE_URL = "http://127.0.0.1:8000/customers" 
 # Email Service URL
@@ -61,10 +88,19 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal Server Error. Please try again later."},
     )  
-    
+
+def get_customer(customer_id: str, token: str):
+    headers = {"Authorization": f"Bearer {token}"}
+    res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", headers=headers, timeout=5)
+    return res
+
 @app.get("/account/{customer_id}",response_model=Account)
-def getAccountinfo(customer_id : str):
-    res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}",timeout=5)
+def getAccountinfo(customer_id : str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
+
+    # res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}",timeout=5)
+    res = get_customer(customer_id, token)
     connct = get_connection()
     cur = connct.cursor()
     cur.execute("SELECT customer_id, account_id, balance FROM account WHERE customer_id = ?", customer_id)
@@ -113,9 +149,10 @@ def find_account_by_id(account_id: str):
         conn.close()
 
 # Lấy email khách hàng từ Customer Service
-def get_customer_email(customer_id: str) -> str:
+def get_customer_email(customer_id: str, token: str) -> str:
     try:
-        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        # res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        res = get_customer(customer_id, token)
         if res.status_code == 200:
             data = res.json()
             return data.get("email")
@@ -128,9 +165,10 @@ def get_customer_email(customer_id: str) -> str:
         raise HTTPException(status_code=503, detail="Customer Service unavailable")
     
 # Lấy tên khách hàng
-def get_customer_name(customer_id: str) -> str:
+def get_customer_name(customer_id: str, token: str) -> str:
     try:
-        res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        # res = requests.get(f"{CUSTOMER_SERVICE_URL}/{customer_id}", timeout=5)
+        res = get_customer(customer_id, token)
         if res.status_code == 200:
             data = res.json()
             return data.get("full_name")
@@ -143,14 +181,15 @@ def get_customer_name(customer_id: str) -> str:
         raise HTTPException(status_code=503, detail="Customer Service unavailable")
 
 # Hàm gửi email bằng cách gọi sang Email Service
-def notify_email(recipient: str, subject: str, body: str):
+def notify_email(recipient: str, subject: str, body: str, token: str):
     payload = {
         "toList": [recipient],
         "subject": subject,
         "body": body
     }
     try:
-        res = requests.post(EMAIL_SERVICE_URL, json=payload, timeout=5)
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.post(EMAIL_SERVICE_URL, json=payload, headers=headers, timeout=5)
         if res.status_code != 200:
             logging.error(f"Email service returned {res.status_code}: {res.text}")
             return False
@@ -160,9 +199,12 @@ def notify_email(recipient: str, subject: str, body: str):
         return False      
     
 @app.put("/account/update-balance",response_model=AccountResponse)
-def update_balance(data: BalanceUpdate):
-    logging.info("Get account by id")
+def update_balance(data: BalanceUpdate, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = verify_token(token)
 
+    logging.info("Get account by id")
+   
     # Lấy account theo account_id từ DB
     account = find_account_by_id(data.account_id)
 
@@ -197,8 +239,8 @@ def update_balance(data: BalanceUpdate):
     
     logging.info("Chuan bi gui mail")
     # Lấy email khách hàng từ Customer Service
-    customer_email = get_customer_email(account.customer_id)
-    customer_name = get_customer_name(account.customer_id)
+    customer_email = get_customer_email(account.customer_id, token)
+    customer_name = get_customer_name(account.customer_id, token)
     # Gọi Email Service để gửi thông báo
     subject = "Account Balance Updated"
     body = f"""
@@ -222,7 +264,7 @@ def update_balance(data: BalanceUpdate):
     </html>
     """
     # Muốn test thì thay customer_email thành gmail của mình
-    notify_email(customer_email, subject, body)
+    notify_email(customer_email, subject, body, token)
     
     return AccountResponse(
     customer_id=account.customer_id,
