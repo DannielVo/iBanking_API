@@ -226,7 +226,7 @@ def make_payment(data: MakePaymentRequest, credentials: HTTPAuthorizationCredent
     payload = verify_token(token)
     headers = {"Authorization": f"Bearer {token}"}
     
-    lock = get_lock_for_customer(data.customerId)
+    lock = get_lock_for_customer(data.customerPaymentId)
 
     logging.info("Da qua buoc get customer lock")
 
